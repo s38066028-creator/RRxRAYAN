@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Veo 3 Generator (Single HTML)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: dark light; }
+    .kbd { @apply inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+  <div class="max-w-5xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-2xl md:text-3xl font-bold">Veo 3 Video Generator</h1>
+      <p class="text-slate-600">Halaman ini contoh <em>frontend</em> murni (single file) untuk memanggil API model Veo 3. Lengkapi API Key dan endpoint kamu sendiri.</p>
+    </header><!-- CONFIG CARD -->
+<section class="grid md:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl shadow p-4">
+    <h2 class="font-semibold mb-3">Kunci & Endpoint</h2>
+    <label class="block text-sm font-medium">API Key</label>
+    <input id="apiKey" type="password" class="mt-1 w-full rounded-xl border p-2" placeholder="sk-..." />
+    <div class="flex items-center gap-2 mt-2">
+      <input id="rememberKey" type="checkbox" class="rounded" />
+      <label for="rememberKey" class="text-sm text-slate-600">Simpan di <code>localStorage</code> (hanya untuk dev)</label>
+    </div>
+
+    <label class="block text-sm font-medium mt-4">API Base URL</label>
+    <input id="baseUrl" class="mt-1 w-full rounded-xl border p-2" placeholder="https://YOUR-API/v1" />
+    <p class="text-xs text-slate-500 mt-1">Contoh: proxy server kamu sendiri. Pastikan CORS mengizinkan origin ini.</p>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow p-4">
+    <h2 class="font-semibold mb-3">Model & Output</h2>
+    <label class="block text-sm font-medium">Model Veo 3</label>
+    <input id="model" list="modelList" class="mt-1 w-full rounded-xl border p-2" placeholder="veo-3" />
+    <datalist id="modelList">
+      <option value="veo-3" />
+      <option value="veo-3-flash" />
+      <option value="veo-3-long" />
+    </datalist>
+
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <div>
+        <label class="block text-sm font-medium">Resolusi</label>
+        <select id="resolution" class="mt-1 w-full rounded-xl border p-2">
+          <option>1280x720</option>
+          <option selected>1920x1080</option>
+          <option>1080x1920</option>
+          <option>2048x1080</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Durasi (detik)</label>
+        <input id="duration" type="number" min="1" max="60" value="8" class="mt-1 w-full rounded-xl border p-2" />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <div>
+        <label class="block text-sm font-medium">Seed (opsional)</label>
+        <input id="seed" type="number" class="mt-1 w-full rounded-xl border p-2" placeholder="acak" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium">FPS</label>
+        <input id="fps" type="number" min="8" max="60" value="24" class="mt-1 w-full rounded-xl border p-2" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROMPT CARD -->
+<section class="bg-white rounded-2xl shadow p-4 mb-6">
+  <h2 class="font-semibold mb-3">Prompt</h2>
+  <label class="block text-sm font-medium">Instruksi (positif)</label>
+  <textarea id="prompt" rows="5" class="mt-1 w-full rounded-xl border p-3" placeholder="Deskripsikan adegan yang ingin dibuat (gaya, kamera, gerak, suasana)..."></textarea>
+
+  <div class="grid md:grid-cols-2 gap-4 mt-4">
+    <div>
+      <label class="block text-sm font-medium">Negative Prompt (opsional)</label>
+      <input id="negativePrompt" class="mt-1 w-full rounded-xl border p-2" placeholder="hal yang harus dihindari" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium">Ref Image / Video URL (opsional)</label>
+      <input id="refUrl" class="mt-1 w-full rounded-xl border p-2" placeholder="https://..." />
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2 mt-4">
+    <input id="dryRun" type="checkbox" class="rounded" />
+    <label for="dryRun" class="text-sm text-slate-700">Dry‑run saja (jangan kirim ke API, hanya tampilkan payload)</label>
+  </div>
+
+  <div class="flex flex-wrap gap-3 mt-4">
+    <button id="btnGenerate" class="rounded-2xl px-4 py-2 bg-black text-white hover:opacity-90 disabled:opacity-50">Generate</button>
+    <button id="btnClear" class="rounded-2xl px-4 py-2 border" type="button">Reset</button>
+  </div>
+</section>
+
+<!-- OUTPUT -->
+<section class="grid lg:grid-cols-2 gap-4">
+  <div class="bg-white rounded-2xl shadow p-4">
+    <h3 class="font-semibold mb-2">Log / Status</h3>
+    <pre id="log" class="bg-slate-900 text-slate-100 rounded-xl p-3 overflow-auto max-h-80 text-sm"></pre>
+    <details class="mt-3">
+      <summary class="cursor-pointer select-none font-medium">Payload Terakhir</summary>
+      <pre id="payload" class="bg-slate-900 text-slate-100 rounded-xl p-3 overflow-auto max-h-80 text-sm"></pre>
+    </details>
+  </div>
+  <div class="bg-white rounded-2xl shadow p-4">
+    <h3 class="font-semibold mb-2">Hasil</h3>
+    <video id="player" class="w-full rounded-xl" controls></video>
+    <div id="downloadLinks" class="mt-3 text-sm text-slate-700"></div>
+  </div>
+</section>
+
+<footer class="text-center text-xs text-slate-500 mt-8">
+  <p>
+    Catatan: halaman ini hanya contoh. Banyak layanan AI video memerlukan <em>server-side proxy</em> untuk menyembunyikan API key dan menghindari CORS. Jangan menaruh API key rahasia langsung di frontend produksi.
+  </p>
+</footer>
+
+  </div>  <script>
+    // --- Helpers ---
+    const $ = (id) => document.getElementById(id);
+    const log = (msg) => {
+      const ts = new Date().toLocaleTimeString();
+      const el = $("log");
+      el.textContent += `[${ts}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    };
+
+    // Load stored API key
+    (function init() {
+      const stored = localStorage.getItem("veo_api_key");
+      if (stored) {
+        $("apiKey").value = stored;
+        $("rememberKey").checked = true;
+      }
+    })();
+
+    $("rememberKey").addEventListener("change", (e) => {
+      const checked = e.target.checked;
+      const key = $("apiKey").value.trim();
+      if (checked && key) localStorage.setItem("veo_api_key", key);
+      if (!checked) localStorage.removeItem("veo_api_key");
+    });
+
+    $("apiKey").addEventListener("input", () => {
+      if ($("rememberKey").checked) {
+        localStorage.setItem("veo_api_key", $("apiKey").value.trim());
+      }
+    });
+
+    $("btnClear").addEventListener("click", () => {
+      ["prompt","negativePrompt","refUrl"].forEach(id => $(id).value = "");
+      $("payload").textContent = "";
+      $("log").textContent = "";
+      $("player").removeAttribute("src");
+      $("downloadLinks").innerHTML = "";
+      log("Form direset.");
+    });
+
+    $("btnGenerate").addEventListener("click", async () => {
+      const apiKey = $("apiKey").value.trim();
+      const baseUrl = $("baseUrl").value.trim();
+      const model = $("model").value.trim() || "veo-3";
+      const prompt = $("prompt").value.trim();
+      const negative = $("negativePrompt").value.trim();
+      const refUrl = $("refUrl").value.trim();
+      const resolution = $("resolution").value;
+      const duration = parseInt($("duration").value, 10) || 8;
+      const seed = $("seed").value ? Number($("seed").value) : undefined;
+      const fps = parseInt($("fps").value, 10) || 24;
+      const dryRun = $("dryRun").checked;
+
+      if (!prompt) return alert("Prompt tidak boleh kosong.");
+
+      const [width, height] = resolution.split("x").map(Number);
+
+      // Payload GENERIC (samakan dengan spesifikasi provider kamu)
+      const body = {
+        model,
+        prompt,
+        negative_prompt: negative || undefined,
+        reference_url: refUrl || undefined,
+        video: { width, height, duration, fps, seed },
+      };
+
+      $("payload").textContent = JSON.stringify(body, null, 2);
+
+      if (dryRun) {
+        log("Dry‑run aktif: payload hanya ditampilkan, tidak mengirim request.");
+        return;
+      }
+
+      if (!apiKey || !baseUrl) {
+        return alert("Isi API Key dan API Base URL terlebih dahulu, atau centang Dry‑run.");
+      }
+
+      try {
+        log("Mengirim request...");
+        const res = await fetch(`${baseUrl.replace(/\/$/, "")}/videos:generate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errText}`);
+        }
+
+        const data = await res.json();
+        // Contoh normalisasi respons. Ubah sesuai skema provider kamu.
+        // Di bawah ini mencoba membaca salah satu dari beberapa kemungkinan field.
+        const videoUrl = data.video_url || data.output_url || data.result?.url || data.data?.[0]?.url;
+        const download = data.download_url || data.result?.download_url;
+
+        if (!videoUrl) {
+          log("Respons diterima, tetapi URL video tidak ditemukan. Cek panel Payload & Log.");
+          console.debug(data);
+        } else {
+          $("player").src = videoUrl;
+          $("player").play().catch(() => {});
+          let links = `<a class="underline" href="${videoUrl}" target="_blank" rel="noopener">Buka Video</a>`;
+          if (download) links += ` • <a class="underline" href="${download}" target="_blank" rel="noopener">Download</a>`;
+          $("downloadLinks").innerHTML = links;
+          log("Berhasil: video URL dimuat.");
+        }
+
+        log("Respons: " + JSON.stringify(data).slice(0, 600) + (JSON.stringify(data).length > 600 ? "..." : ""));
+      } catch (err) {
+        console.error(err);
+        log("Gagal: " + err.message);
+        alert("Request gagal. Lihat Log untuk detail.");
+      }
+    });
+  </script></body>
+</html>
